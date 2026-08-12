@@ -1,5 +1,7 @@
 import os
 import smtplib
+import base64
+from typing import List, Optional
 from email.message import EmailMessage
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
@@ -42,12 +44,19 @@ def get_api_key(api_key: str = Security(api_key_header)):
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return api_key
 
+# Attachment Model
+class Attachment(BaseModel):
+    filename: str
+    content: str  # Base64 encoded file content
+    content_type: str = "application/octet-stream"
+
 # Request Model
 class EmailRequest(BaseModel):
     to: str
     subject: str
     html: str
     text: str = ""
+    attachments: Optional[List[Attachment]] = None
 
 @app.get("/")
 def health_check():
@@ -70,6 +79,16 @@ def send_email(request: EmailRequest, api_key: str = Security(get_api_key)):
         
         # Attach the HTML content
         msg.add_alternative(request.html, subtype='html')
+
+        # Attach files if provided
+        if request.attachments:
+            for att in request.attachments:
+                raw_bytes = base64.b64decode(att.content)
+                if "/" in att.content_type:
+                    maintype, subtype = att.content_type.split("/", 1)
+                else:
+                    maintype, subtype = "application", "octet-stream"
+                msg.add_attachment(raw_bytes, maintype=maintype, subtype=subtype, filename=att.filename)
 
         # Send the email
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
