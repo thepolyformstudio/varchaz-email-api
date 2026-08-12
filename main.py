@@ -102,3 +102,9 @@ def send_email(request: EmailRequest, api_key: str = Security(get_api_key)):
     except Exception as e:
         print(f"Error sending email: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
+
